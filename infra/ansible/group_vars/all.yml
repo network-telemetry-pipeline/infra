@@ -1,0 +1,9 @@
+# Choose the Kubernetes minor repo (pkgs.k8s.io is per-minor)
+kubernetes_minor: "v1.35"
+
+# Cluster networking
+service_cidr: "10.96.0.0/12"
+pod_cidr: "10.244.0.0/16"   # kubeadm wants one; Cilium doesn't rely on it
+
+# Cilium
+cilium_version: "1.19.0"

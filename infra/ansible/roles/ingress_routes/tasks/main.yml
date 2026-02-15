@@ -1,0 +1,59 @@
+- name: Apply Ingress for Argo CD
+  copy:
+    dest: /tmp/argocd-ingress.yaml
+    content: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: argocd
+        namespace: argocd
+      spec:
+        ingressClassName: nginx
+        rules:
+        - host: argocd.local
+          http:
+            paths:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: argo-cd-argocd-server
+                  port:
+                    number: 80
+  changed_when: false
+
+- name: Create/Update Argo CD Ingress
+  command: kubectl apply -f /tmp/argocd-ingress.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: Apply Ingress for Grafana
+  copy:
+    dest: /tmp/grafana-ingress.yaml
+    content: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: grafana
+        namespace: monitoring
+      spec:
+        ingressClassName: nginx
+        rules:
+        - host: grafana.local
+          http:
+            paths:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: kube-prometheus-stack-grafana
+                  port:
+                    number: 80
+  changed_when: false
+
+- name: Create/Update Grafana Ingress
+  command: kubectl apply -f /tmp/grafana-ingress.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true

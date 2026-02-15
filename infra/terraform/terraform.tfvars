@@ -1,0 +1,5 @@
+project_id           = ""
+ssh_public_key_path  = ""
+admin_cidr           = ""
+region               = ""
+zone                 = ""

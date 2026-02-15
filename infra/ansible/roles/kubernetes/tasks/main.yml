@@ -1,0 +1,112 @@
+- name: Add Kubernetes apt keyring directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Fetch Kubernetes apt repo key (pkgs.k8s.io)
+  get_url:
+    url: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor }}/deb/Release.key"
+    dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+    mode: "0644"
+
+- name: Add Kubernetes apt repository (per-minor)
+  copy:
+    dest: /etc/apt/sources.list.d/kubernetes.list
+    content: |
+      deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor }}/deb/ /
+
+- name: Install kubelet/kubeadm/kubectl (latest patch in {{ kubernetes_minor }})
+  apt:
+    update_cache: true
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+
+- name: Hold kube packages (prevents surprise upgrades)
+  command: apt-mark hold kubelet kubeadm kubectl
+  changed_when: false
+
+- name: Enable kubelet
+  systemd:
+    name: kubelet
+    enabled: true
+    state: started
+
+# ---------------- Control plane init (k8s_phase=control_plane) ----------------
+
+- name: Check if control plane already initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: adminconf_stat
+  when: k8s_phase | default('packages') == 'control_plane'
+
+- name: Initialize Kubernetes control plane (advertise INTERNAL IP)
+  command: >
+    kubeadm init
+    --apiserver-advertise-address={{ private_ip }}
+    --service-cidr={{ service_cidr }}
+    --pod-network-cidr={{ pod_cidr }}
+  when:
+    - k8s_phase | default('packages') == 'control_plane'
+    - not adminconf_stat.stat.exists
+
+- name: Create kubeconfig directory for ubuntu user
+  file:
+    path: /home/ubuntu/.kube
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0700"
+  when: k8s_phase | default('packages') == 'control_plane'
+
+- name: Copy admin kubeconfig to ubuntu user
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/ubuntu/.kube/config
+    remote_src: true
+    owner: ubuntu
+    group: ubuntu
+    mode: "0600"
+  when: k8s_phase | default('packages') == 'control_plane'
+
+- name: Get kubeadm join command (from control plane)
+  command: kubeadm token create --print-join-command
+  register: join_cmd_raw
+  changed_when: false
+  when: k8s_phase | default('packages') == 'control_plane'
+
+- name: Rewrite join command to use control-plane INTERNAL IP endpoint
+  set_fact:
+    kubeadm_join_command: >-
+      {{ join_cmd_raw.stdout | regex_replace('^kubeadm join\\s+[^\\s]+', 'kubeadm join ' ~ private_ip ~ ':6443') }}
+  when: k8s_phase | default('packages') == 'control_plane'
+
+# ---------------- Worker join (k8s_phase=join) ----------------
+
+- name: Check if worker already joined
+  stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubeletconf_stat
+  when: k8s_phase | default('packages') == 'join'
+
+- name: Ensure join command is available from control plane hostvars
+  assert:
+    that:
+      - hostvars[groups['kube_control_plane'][0]].kubeadm_join_command is defined
+    fail_msg: >
+      kubeadm_join_command is not defined. Ensure the control-plane play (k8s_phase=control_plane)
+      ran successfully before running the join play.
+  when:
+    - k8s_phase | default('packages') == 'join'
+    - not kubeletconf_stat.stat.exists
+
+- name: Join worker to cluster using control-plane internal endpoint
+  command: >
+    {{ hostvars[groups['kube_control_plane'][0]].kubeadm_join_command }}
+    --node-name {{ inventory_hostname }}
+  when:
+    - k8s_phase | default('packages') == 'join'
+    - not kubeletconf_stat.stat.exists

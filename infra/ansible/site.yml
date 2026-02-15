@@ -1,0 +1,55 @@
+- name: Base OS prep + container runtime + k8s packages
+  hosts: all
+  become: true
+  vars:
+    k8s_phase: packages
+  roles:
+    - common
+    - containerd
+    - kubernetes
+
+- name: Initialize control-plane
+  hosts: kube_control_plane
+  become: true
+  vars:
+    k8s_phase: control_plane
+  roles:
+    - kubernetes
+
+- name: Join workers
+  hosts: kube_workers
+  become: true
+  vars:
+    k8s_phase: join
+  roles:
+    - kubernetes
+
+- name: Install Cilium CNI
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - cilium
+
+- name: Install ingress-nginx
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - ingress_nginx
+
+- name: Install Argo CD
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - argocd
+
+- name: Install Prometheus + Grafana
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - monitoring
+
+- name: Create Ingress routes for Argo CD and Grafana
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - ingress_routes
