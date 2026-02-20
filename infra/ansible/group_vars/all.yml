@@ -7,3 +7,18 @@ pod_cidr: "10.244.0.0/16"   # kubeadm wants one; Cilium doesn't rely on it
 
 # Cilium
 cilium_version: "1.19.0"
+
+platform_domain: "ccmllab.mooo.com"
+
+argocd_path: "argocd"
+grafana_path: "grafana"  
+
+letsencrypt_email: "cilicivan96@gmail.com"
+
+# Staging
+#acme_server: "https://acme-staging-v02.api.letsencrypt.org/directory"
+#cluster_issuer_name: "letsencrypt-staging"
+
+# Production
+acme_server: "https://acme-v02.api.letsencrypt.org/directory"
+cluster_issuer_name: "letsencrypt-prod"

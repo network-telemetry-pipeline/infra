@@ -8,6 +8,11 @@ locals {
   ssh_pub_key = trimspace(file(var.ssh_public_key_path))
 }
 
+data "google_compute_address" "w01_static_ip" {
+  name   = "ml-lab-w01-ip"
+  region = var.region
+}
+
 resource "google_compute_network" "vpc" {
   name                    = "ml-lab-vpc"
   auto_create_subnetworks = false
@@ -69,19 +74,17 @@ resource "google_compute_firewall" "nodeport_internal" {
   target_tags   = ["ml-lab"]
 }
 
-resource "google_compute_firewall" "ingress_nodeports" {
-  name    = "ml-lab-allow-ingress-nodeports"
+resource "google_compute_firewall" "allow_web_80_443" {
+  name    = "ml-lab-allow-web-80-443"
   network = google_compute_network.vpc.name
 
   allow {
     protocol = "tcp"
-    ports    = ["30080", "30443"]
+    ports    = ["80", "443"]
   }
 
-  # Restrict to your current public IP/CIDR (recommended)
-  source_ranges = [var.admin_cidr]
+  source_ranges = ["0.0.0.0/0"]
 
-  # Must match your instances' tags
   target_tags = ["ml-lab"]
 }
 
@@ -104,8 +107,9 @@ resource "google_compute_instance" "k8s" {
     subnetwork = google_compute_subnetwork.subnet.id
     network_ip = each.value.ip
 
-    # If you want public IPs for SSH directly, uncomment this:
-    access_config {}
+    access_config {
+        nat_ip = each.key == "k8s-worker-01" ? data.google_compute_address.w01_static_ip.address : null
+    }
   }
 
   metadata = {
