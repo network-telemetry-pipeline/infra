@@ -36,6 +36,12 @@
   roles:
     - ingress_nginx
 
+- name: Install cert-manager
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - cert_manager
+
 - name: Install Argo CD
   hosts: kube_control_plane
   become: true
@@ -48,7 +54,7 @@
   roles:
     - monitoring
 
-- name: Create Ingress routes for Argo CD and Grafana
+- name: Apply Ingress routes
   hosts: kube_control_plane
   become: true
   roles:

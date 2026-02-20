@@ -1,5 +1,22 @@
 # Infrastructure setup
 
+## GCP - create external static IP
+
+Create external IP:
+```
+gcloud compute addresses create ml-lab-w01-ip \
+  --region=europe-west1
+```
+
+Obtain the IP address:
+```
+gcloud compute addresses describe ml-lab-w01-ip \
+  --region=europe-west1 \
+  --format="get(address)"
+```
+
+Set this IP for your DNS.
+
 ## Terraform - provision VMs
 
 Run following commands to plan and provision 3 VMs in GCP:

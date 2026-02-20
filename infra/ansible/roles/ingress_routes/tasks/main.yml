@@ -1,4 +1,4 @@
-- name: Apply Ingress for Argo CD
+- name: Prepare argocd ingress
   copy:
     dest: /tmp/argocd-ingress.yaml
     content: |
@@ -7,13 +7,19 @@
       metadata:
         name: argocd
         namespace: argocd
+        annotations:
+          cert-manager.io/cluster-issuer: {{ cluster_issuer_name }}
       spec:
         ingressClassName: nginx
+        tls:
+        - hosts:
+          - {{ platform_domain }}
+          secretName: argocd-tls
         rules:
-        - host: argocd.local
+        - host: {{ platform_domain }}
           http:
             paths:
-            - path: /
+            - path: /{{ argocd_path }}
               pathType: Prefix
               backend:
                 service:
@@ -22,13 +28,13 @@
                     number: 80
   changed_when: false
 
-- name: Create/Update Argo CD Ingress
+- name: Apply argocd ingress
   command: kubectl apply -f /tmp/argocd-ingress.yaml
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   changed_when: true
 
-- name: Apply Ingress for Grafana
+- name: Prepare grafana ingress
   copy:
     dest: /tmp/grafana-ingress.yaml
     content: |
@@ -37,13 +43,19 @@
       metadata:
         name: grafana
         namespace: monitoring
+        annotations:
+          cert-manager.io/cluster-issuer: {{ cluster_issuer_name }}
       spec:
         ingressClassName: nginx
+        tls:
+        - hosts:
+          - {{ platform_domain }}
+          secretName: grafana-tls
         rules:
-        - host: grafana.local
+        - host: {{ platform_domain }}
           http:
             paths:
-            - path: /
+            - path: /grafana
               pathType: Prefix
               backend:
                 service:
@@ -52,7 +64,7 @@
                     number: 80
   changed_when: false
 
-- name: Create/Update Grafana Ingress
+- name: Apply grafana ingress
   command: kubectl apply -f /tmp/grafana-ingress.yaml
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf

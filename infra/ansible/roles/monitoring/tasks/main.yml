@@ -23,9 +23,6 @@
   command: helm repo update
   changed_when: false
 
-# Small-cluster friendly defaults:
-# - shorter retention
-# - smaller resource usage
 - name: Install/upgrade kube-prometheus-stack
   command: >
     helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack
@@ -33,6 +30,8 @@
     --version {{ kps_chart_version | default('81.5.1') }}
     --set prometheus.prometheusSpec.retention=6h
     --set grafana.adminPassword=admin
+    --set grafana.grafana\\.ini.server.root_url=%(protocol)s://%(domain)s/{{ grafana_path }}
+    --set grafana.grafana\\.ini.server.serve_from_sub_path=true
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   changed_when: true
