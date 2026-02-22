@@ -1,0 +1,44 @@
+---
+- name: Create kafka namespace (idempotent)
+  command: kubectl create namespace {{ kafka_namespace }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: ns_create
+  failed_when: ns_create.rc != 0 and ("AlreadyExists" not in ns_create.stderr)
+  changed_when: ns_create.rc == 0
+
+- name: Apply Strimzi operator
+  command: kubectl apply -n {{ kafka_namespace }} -f {{ strimzi_install_url }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: Wait for Strimzi operator deployment to be available
+  command: kubectl -n {{ kafka_namespace }} rollout status deploy/strimzi-cluster-operator --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Render Kafka CR + NodePool to /tmp
+  template:
+    src: kafka_single.yaml.j2
+    dest: "{{ kafka_single_tmp }}"
+    mode: "0644"
+
+- name: Apply Kafka CR + NodePool
+  command: kubectl apply -n {{ kafka_namespace }} -f {{ kafka_single_tmp }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: Wait for Kafka Ready condition
+  command: >
+    kubectl get kafka {{ kafka_cluster_name }} -n {{ kafka_namespace }}
+    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kafka_ready
+  until: kafka_ready.stdout.strip() == "True"
+  retries: "{{ kafka_wait_retries }}"
+  delay: "{{ kafka_wait_delay }}"
+  changed_when: false

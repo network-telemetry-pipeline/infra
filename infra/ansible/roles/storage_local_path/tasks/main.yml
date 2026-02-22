@@ -1,0 +1,22 @@
+- name: Apply local-path-provisioner
+  command: kubectl apply -f {{ local_path_manifest_url }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: Wait for local-path-provisioner pod to be ready
+  command: >
+    kubectl -n local-path-storage
+    rollout status deploy/local-path-provisioner --timeout=180s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Set local-path as default StorageClass
+  command: >
+    kubectl patch storageclass local-path
+    -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  when: true
+  changed_when: true

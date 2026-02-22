@@ -59,3 +59,15 @@
   become: true
   roles:
     - ingress_routes
+
+- name: Install local-path storage provisioner
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - storage_local_path
+
+- name: Install and deploy Kafka cluster
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - kafka

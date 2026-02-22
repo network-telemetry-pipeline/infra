@@ -60,7 +60,7 @@ resource "google_compute_firewall" "internal" {
   target_tags   = ["ml-lab"]
 }
 
-# Optional: allow NodePort range internally only
+# Allow NodePort range internally
 resource "google_compute_firewall" "nodeport_internal" {
   name    = "ml-lab-nodeport-internal"
   network = google_compute_network.vpc.name
@@ -84,6 +84,20 @@ resource "google_compute_firewall" "allow_web_80_443" {
   }
 
   source_ranges = ["0.0.0.0/0"]
+
+  target_tags = ["ml-lab"]
+}
+
+resource "google_compute_firewall" "nodeport_kafka" {
+  name    = "ml-lab-nodeport-kafka"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["30994", "30995"]
+  }
+
+  source_ranges = [var.admin_cidr]
 
   target_tags = ["ml-lab"]
 }

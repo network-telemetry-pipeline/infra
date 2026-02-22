@@ -1,0 +1,14 @@
+kafka_namespace: kafka
+
+strimzi_install_url: "https://strimzi.io/install/latest?namespace={{ kafka_namespace }}"
+
+kafka_cluster_name: my-cluster
+kafka_storage_size: 20Gi
+kafka_bootstrap_nodeport: 30994
+kafka_broker0_nodeport: 30995
+kafka_wait_retries: 60
+kafka_wait_delay: 10
+
+strimzi_install_tmp: /tmp/strimzi-install.yaml
+kafka_single_tmp: /tmp/kafka-single.yaml
+
