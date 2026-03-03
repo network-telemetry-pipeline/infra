@@ -102,6 +102,20 @@ resource "google_compute_firewall" "nodeport_kafka" {
   target_tags = ["ml-lab"]
 }
 
+resource "google_compute_firewall" "nodeport_minio" {
+  name    = "ml-lab-nodeport-minio"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["31000", "31001"]
+  }
+
+  source_ranges = [var.admin_cidr]
+
+  target_tags = ["ml-lab"]
+}
+
 resource "google_compute_instance" "k8s" {
   for_each     = { for n in local.nodes : n.name => n }
   name         = each.value.name

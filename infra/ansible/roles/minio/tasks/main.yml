@@ -1,0 +1,58 @@
+---
+- name: Add MinIO Helm repo
+  command: helm repo add minio https://helm.min.io/
+  register: helm_repo_add
+  failed_when: false
+  changed_when: "'has been added' in helm_repo_add.stdout"
+
+- name: Update Helm repos
+  command: helm repo update
+  changed_when: false
+
+- name: Install AIStor Operator
+  command: >
+    helm install aistor minio/aistor-operator
+    -n aistor
+    --create-namespace
+    --set license="{{ aistor_license_key }}"
+  register: install_operator
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: Give AIStor operator time to create pods
+  pause:
+    seconds: 5
+
+- name: Wait for all pods in aistor namespace to be Ready
+  command: kubectl wait --for=condition=Ready pod --all -n aistor --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Copy objectstore values file to node
+  copy:
+    src: aistor-objectstore-values.yaml
+    dest: /tmp/aistor-objectstore-values.yaml
+
+- name: Install Primary Object Store
+  command: >
+    helm upgrade --install primary-object-store minio/aistor-objectstore
+    -n primary-object-store
+    --create-namespace
+    -f /tmp/aistor-objectstore-values.yaml
+  register: install_objectstore
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: Wait for Primary Object Store pods to be created
+  pause:
+    seconds: 5
+
+- name: Wait for Primary Object Store pods to be ready
+  command: kubectl wait --for=condition=Ready pod --all -n primary-object-store --timeout=300s
+  register: wait_objectstore
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false

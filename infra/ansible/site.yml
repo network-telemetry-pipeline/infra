@@ -71,3 +71,10 @@
   become: true
   roles:
     - kafka
+
+- name: Install MinIO AIStor
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - minio
+  tags: minio
