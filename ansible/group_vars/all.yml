@@ -22,3 +22,9 @@ letsencrypt_email: "cilicivan96@gmail.com"
 # Production
 acme_server: "https://acme-v02.api.letsencrypt.org/directory"
 cluster_issuer_name: "letsencrypt-prod"
+
+minio_access_key: minio
+minio_secret_key: <MINIO_SECRET_KEY>
+minio_namespace: primary-object-store
+minio_service_name: net-tel-minio
+minio_bucket: datalake

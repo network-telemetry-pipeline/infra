@@ -1,0 +1,29 @@
+---
+- name: Create postgres namespace (idempotent)
+  command: kubectl create namespace {{ postgres_namespace }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: ns_create
+  failed_when: ns_create.rc != 0 and ("AlreadyExists" not in ns_create.stderr)
+  changed_when: ns_create.rc == 0
+
+- name: Copy Postgres manifests to remote
+  copy:
+    src: postgres.yaml
+    dest: /tmp/postgres.yaml
+    mode: "0644"
+
+- name: Apply Postgres deployment (Secret, PVC, Deployment, Service)
+  command: kubectl apply -f /tmp/postgres.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: Wait for Postgres pod to be ready
+  command: >
+    kubectl rollout status deployment/postgres
+    -n {{ postgres_namespace }} --timeout=180s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+

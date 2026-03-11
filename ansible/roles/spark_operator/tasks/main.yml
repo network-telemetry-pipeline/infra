@@ -1,0 +1,68 @@
+---
+- name: Create spark namespace
+  command: kubectl create namespace {{ spark_namespace }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: ns_create
+  failed_when: ns_create.rc != 0 and ("AlreadyExists" not in ns_create.stderr)
+  changed_when: ns_create.rc == 0
+
+- name: Add Spark operator Helm repo
+  command: helm repo add {{ spark_operator_repo_name }} {{ spark_operator_repo_url }}
+  register: helm_repo_add
+  failed_when: false
+  changed_when: "'has been added' in helm_repo_add.stdout"
+
+- name: Update Helm repos
+  command: helm repo update
+  changed_when: false
+
+- name: Install Spark operator
+  command: >
+    helm install {{ spark_operator_release }} {{ spark_operator_chart }}
+    -n {{ spark_namespace }}
+    --set "spark.jobNamespaces={{ '{' }}{{ spark_namespace }}{{ '}' }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: helm_install
+  failed_when: helm_install.rc != 0 and ("already exists" not in helm_install.stderr)
+  changed_when: helm_install.rc == 0
+
+- name: Wait for Spark operator pods to be ready
+  command: kubectl wait --for=condition=Ready pod --all -n {{ spark_namespace }} --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Create minio-creds secret in spark namespace
+  command: >
+    kubectl -n {{ spark_namespace }} create secret generic minio-creds
+    --from-literal=AWS_ACCESS_KEY_ID={{ minio_access_key }}
+    --from-literal=AWS_SECRET_ACCESS_KEY={{ minio_secret_key }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: secret_create
+  failed_when: secret_create.rc != 0 and ("AlreadyExists" not in secret_create.stderr)
+  changed_when: secret_create.rc == 0
+
+- name: Get MinIO S3 API service name
+  command: >
+    kubectl get svc -n {{ minio_namespace }}
+    -o jsonpath='{.items[?(@.metadata.name=="{{ minio_service_name }}")].metadata.name}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: minio_svc
+  changed_when: false
+
+- name: Create datalake bucket in MinIO
+  command: >
+    kubectl run mc-create-bucket --restart=Never --rm --attach
+    --image=minio/mc
+    -n {{ minio_namespace }}
+    --env="MC_HOST_local=http://{{ minio_access_key }}:{{ minio_secret_key }}@{{ minio_svc.stdout }}.{{ minio_namespace }}.svc.cluster.local:9000"
+    --command -- mc mb --ignore-existing local/{{ minio_bucket }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: mc_result
+  failed_when: mc_result.rc != 0 and ("already exists" not in mc_result.stdout | lower)
+  changed_when: mc_result.rc == 0

@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: data-pipeline
+  namespace: argocd
+spec:
+  sourceRepos:
+    - https://github.com/network-telemetry-pipeline/data-pipeline.git
+  destinations:
+    - namespace: kafka
+      server: https://kubernetes.default.svc
+    - namespace: spark
+      server: https://kubernetes.default.svc
+    - namespace: api
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"

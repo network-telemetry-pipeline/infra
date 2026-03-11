@@ -1,0 +1,4 @@
+---
+dashboard_api_namespace: api
+postgres_namespace: postgres
+postgres_init_job_wait_timeout: 120s

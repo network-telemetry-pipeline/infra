@@ -82,7 +82,7 @@ admin_cidr          = "your.ip.address/32"
 Must exist before running Terraform:
 
 ```bash
-gcloud compute addresses create net-tel-w01-ip \
+gcloud compute addresses create ml-lab-w01-ip \
   --region=europe-west1
 ```
 

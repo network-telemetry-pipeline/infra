@@ -14,12 +14,12 @@ data "google_compute_address" "w01_static_ip" {
 }
 
 resource "google_compute_network" "vpc" {
-  name                    = "ml-lab-vpc"
+  name                    = "net-tel-vpc"
   auto_create_subnetworks = false
 }
 
 resource "google_compute_subnetwork" "subnet" {
-  name          = "ml-lab-subnet"
+  name          = "net-tel-subnet"
   ip_cidr_range = var.subnet_cidr
   region        = var.region
   network       = google_compute_network.vpc.id
@@ -27,7 +27,7 @@ resource "google_compute_subnetwork" "subnet" {
 
 # Firewall: allow SSH only from admin CIDR
 resource "google_compute_firewall" "ssh" {
-  name    = "ml-lab-allow-ssh"
+  name    = "net-tel-allow-ssh"
   network = google_compute_network.vpc.name
 
   allow {
@@ -36,12 +36,12 @@ resource "google_compute_firewall" "ssh" {
   }
 
   source_ranges = [var.admin_cidr]
-  target_tags   = ["ml-lab"]
+  target_tags   = ["net-tel"]
 }
 
 # Firewall: internal cluster traffic within subnet
 resource "google_compute_firewall" "internal" {
-  name    = "ml-lab-allow-internal"
+  name    = "net-tel-allow-internal"
   network = google_compute_network.vpc.name
 
   allow {
@@ -57,12 +57,12 @@ resource "google_compute_firewall" "internal" {
   }
 
   source_ranges = [var.subnet_cidr]
-  target_tags   = ["ml-lab"]
+  target_tags   = ["net-tel"]
 }
 
 # Allow NodePort range internally
 resource "google_compute_firewall" "nodeport_internal" {
-  name    = "ml-lab-nodeport-internal"
+  name    = "net-tel-nodeport-internal"
   network = google_compute_network.vpc.name
 
   allow {
@@ -71,11 +71,11 @@ resource "google_compute_firewall" "nodeport_internal" {
   }
 
   source_ranges = [var.subnet_cidr]
-  target_tags   = ["ml-lab"]
+  target_tags   = ["net-tel"]
 }
 
 resource "google_compute_firewall" "allow_web_80_443" {
-  name    = "ml-lab-allow-web-80-443"
+  name    = "net-tel-allow-web-80-443"
   network = google_compute_network.vpc.name
 
   allow {
@@ -85,11 +85,11 @@ resource "google_compute_firewall" "allow_web_80_443" {
 
   source_ranges = ["0.0.0.0/0"]
 
-  target_tags = ["ml-lab"]
+  target_tags = ["net-tel"]
 }
 
 resource "google_compute_firewall" "nodeport_kafka" {
-  name    = "ml-lab-nodeport-kafka"
+  name    = "net-tel-nodeport-kafka"
   network = google_compute_network.vpc.name
 
   allow {
@@ -99,11 +99,11 @@ resource "google_compute_firewall" "nodeport_kafka" {
 
   source_ranges = [var.admin_cidr]
 
-  target_tags = ["ml-lab"]
+  target_tags = ["net-tel"]
 }
 
 resource "google_compute_firewall" "nodeport_minio" {
-  name    = "ml-lab-nodeport-minio"
+  name    = "net-tel-nodeport-minio"
   network = google_compute_network.vpc.name
 
   allow {
@@ -113,15 +113,15 @@ resource "google_compute_firewall" "nodeport_minio" {
 
   source_ranges = [var.admin_cidr]
 
-  target_tags = ["ml-lab"]
+  target_tags = ["net-tel"]
 }
 
 resource "google_compute_instance" "k8s" {
   for_each     = { for n in local.nodes : n.name => n }
   name         = each.value.name
-  machine_type = "e2-medium"
+  machine_type = each.value.role == "worker" ? "e2-standard-4" : "e2-medium"
   zone         = var.zone
-  tags         = ["ml-lab", each.value.role]
+  tags         = ["net-tel", each.value.role]
 
   boot_disk {
     initialize_params {

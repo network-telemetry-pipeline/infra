@@ -72,9 +72,52 @@
   roles:
     - kafka
 
+- name: Deploy PostgresDB
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - postgres
+
 - name: Install MinIO AIStor
   hosts: kube_control_plane
   become: true
   roles:
     - minio
-  tags: minio
+
+- name: Install Spark operator
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - spark_operator
+
+- name: Bootstrap ArgoCD project and apps
+  hosts: kube_control_plane
+  become: true
+  tasks:
+    - name: Copy ArgoCD project manifest
+      copy:
+        src: roles/argocd/files/argocd-project.yaml
+        dest: /tmp/argocd-project.yaml
+
+    - name: Copy ArgoCD apps manifest
+      copy:
+        src: roles/argocd/files/argocd-apps.yaml
+        dest: /tmp/argocd-apps.yaml
+
+    - name: Apply ArgoCD project
+      command: kubectl apply -f /tmp/argocd-project.yaml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: true
+
+    - name: Apply ArgoCD apps
+      command: kubectl apply -f /tmp/argocd-apps.yaml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: true
+
+- name: Deploy Dashboard API
+  hosts: kube_control_plane
+  become: true
+  roles:
+    - dashboard_api

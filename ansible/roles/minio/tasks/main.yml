@@ -48,7 +48,7 @@
 
 - name: Wait for Primary Object Store pods to be created
   pause:
-    seconds: 5
+    seconds: 10
 
 - name: Wait for Primary Object Store pods to be ready
   command: kubectl wait --for=condition=Ready pod --all -n primary-object-store --timeout=300s
@@ -56,3 +56,4 @@
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   changed_when: false
+

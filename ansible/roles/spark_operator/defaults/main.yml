@@ -1,0 +1,5 @@
+spark_namespace: spark
+spark_operator_release: spark-operator
+spark_operator_chart: spark-operator/spark-operator
+spark_operator_repo_name: spark-operator
+spark_operator_repo_url: https://kubeflow.github.io/spark-operator

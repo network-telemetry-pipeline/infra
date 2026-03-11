@@ -25,7 +25,7 @@ labels: {}
 secrets:
   name: myminio-env-configuration
   accessKey: minio
-  secretKey: minio123
+  secretKey: <MINIO_SECRET_KEY>
   ###
   # If this variable is set, then enable the usage of an existing Kubernetes secret to set environment variables for the Object Store.
   # The existing Kubernetes secret name must be placed under .objectStore.configuration.name e.g. existing-minio-env-configuration
@@ -46,7 +46,7 @@ secrets:
 objectStore:
   ###
   # The Object Store name
-  name: ml-lab-minio
+  name: net-tel-minio
   ###
   # Specify the container image to use.
   # ``image.tag``
@@ -328,7 +328,7 @@ objectStore:
     client: []
     ###
     # Enable automatic Kubernetes based `certificate generation and signing <https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster>`__
-    disableAutoCert: false
+    disableAutoCert: true
     ###
     # The minimum number of days to expiry before an alert for an expiring certificate is fired.
     # In the below example, if a given certificate will expire in 7 days then expiration events will only be triggered 1 day before expiry
@@ -381,7 +381,7 @@ objectStore:
   # These configurations do not prevent exposing the services via Ingress, Routes, or other networking features
   services:
     console:
-      name: ml-lab-minio-console
+      name: net-tel-minio-console
       #serviceType: ClusterIP
       serviceType: NodePort
       nodePort: 31000
@@ -389,7 +389,7 @@ objectStore:
       #annotations: {}
       #labels: {}
     minio:
-      name: ml-lab-minio
+      name: net-tel-minio
       #serviceType: ClusterIP
       serviceType: NodePort
       nodePort: 31001

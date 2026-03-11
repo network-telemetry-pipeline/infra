@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telemetry-schema
+  namespace: postgres
+data:
+  schema.sql: |
+    CREATE TABLE IF NOT EXISTS gold_fleet_hourly (
+      hour_ts               timestamptz PRIMARY KEY,
+      event_count           bigint NOT NULL,
+      devices_reporting     integer NOT NULL,
+
+      cpu_avg               double precision NOT NULL,
+      cpu_p95               double precision NOT NULL,
+
+      mem_avg               double precision NOT NULL,
+      mem_p95               double precision NOT NULL,
+
+      packet_loss_avg       double precision NOT NULL,
+      packet_loss_p95       double precision NOT NULL,
+
+      devices_degraded      integer NOT NULL,
+      bgp_down_devices      integer NOT NULL,
+
+      created_at            timestamptz NOT NULL DEFAULT now(),
+      updated_at            timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS gold_device_hourly (
+      hour_ts                   timestamptz NOT NULL,
+      device_id                 text NOT NULL,
+
+      event_count               bigint NOT NULL,
+
+      cpu_avg                   double precision NOT NULL,
+      cpu_p95                   double precision NOT NULL,
+
+      mem_avg                   double precision NOT NULL,
+      mem_p95                   double precision NOT NULL,
+
+      packet_loss_avg           double precision NOT NULL,
+      packet_loss_p95           double precision NOT NULL,
+
+      throughput_in_avg_mbps    double precision NOT NULL,
+      throughput_out_avg_mbps   double precision NOT NULL,
+
+      degraded_events           integer NOT NULL,
+      bgp_down_events           integer NOT NULL,
+
+      created_at                timestamptz NOT NULL DEFAULT now(),
+      updated_at                timestamptz NOT NULL DEFAULT now(),
+
+      PRIMARY KEY (hour_ts, device_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gold_device_hourly_device
+      ON gold_device_hourly(device_id);
+
+    CREATE TABLE IF NOT EXISTS gold_anomalies (
+      id         bigserial PRIMARY KEY,
+      ts         timestamptz NOT NULL,
+      device_id  text NOT NULL,
+      severity   text NOT NULL,
+      kind       text NOT NULL,
+      value      double precision,
+      details    jsonb,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gold_anomalies_ts ON gold_anomalies(ts);
+    CREATE INDEX IF NOT EXISTS idx_gold_anomalies_device ON gold_anomalies(device_id);
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-telemetry-db
+  namespace: postgres
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: psql
+          image: postgres:16
+          env:
+            - name: PGHOST
+              value: postgres.postgres.svc.cluster.local
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          command: ["sh", "-lc"]
+          args:
+            - |
+              until pg_isready -h "$PGHOST" -p "$PGPORT"; do
+                echo "Waiting for Postgres..."
+                sleep 2
+              done
+              psql -f /sql/schema.sql
+              echo "Schema applied."
+          volumeMounts:
+            - name: sql
+              mountPath: /sql
+      volumes:
+        - name: sql
+          configMap:
+            name: telemetry-schema
+            items:
+              - key: schema.sql
+                path: schema.sql

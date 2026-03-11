@@ -1,0 +1,30 @@
+---
+- name: Create api namespace (idempotent)
+  command: kubectl create namespace {{ dashboard_api_namespace }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: ns_create
+  failed_when: ns_create.rc != 0 and ("AlreadyExists" not in ns_create.stderr)
+  changed_when: ns_create.rc == 0
+
+- name: Copy schema init job manifests to remote
+  copy:
+    src: schema-init.yaml
+    dest: /tmp/schema-init.yaml
+    mode: "0644"
+
+- name: Apply schema init job (ConfigMap + Job)
+  command: kubectl apply -f /tmp/schema-init.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: Wait for schema init job to complete
+  command: >
+    kubectl wait job/init-telemetry-db
+    -n {{ postgres_namespace }}
+    --for=condition=complete
+    --timeout={{ postgres_init_job_wait_timeout }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false

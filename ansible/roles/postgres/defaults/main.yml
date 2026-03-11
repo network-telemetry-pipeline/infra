@@ -1,0 +1,9 @@
+---
+postgres_namespace: postgres
+postgres_image: postgres:16
+postgres_storage: 10Gi
+postgres_db: telemetry
+postgres_user: telemetry
+postgres_password: <POSTGRES_PASSWORD>
+postgres_wait_retries: 30
+postgres_wait_delay: 10
